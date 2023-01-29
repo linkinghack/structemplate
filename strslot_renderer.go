@@ -40,7 +40,7 @@ func RenderStrSlotTemplate(tmpl string, valuesMapOfInterface map[string]interfac
 			}
 			valueStr = string(valueB)
 		}
-		return string(valueStr)
+		return valueStr
 	}
 
 	result, err = envTmpl.Execute(execFunc)
