@@ -2,6 +2,7 @@ package structemplate
 
 import (
 	"encoding/json"
+
 	"github.com/drone/envsubst/v2"
 	"github.com/pkg/errors"
 )
@@ -17,6 +18,12 @@ func RenderStrSlotTemplate(tmpl string, valuesMapOfInterface map[string]interfac
 	envTmpl, err := envsubst.Parse(tmpl)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "cannot parse the template")
+	}
+	if valuesMapOfInterface == nil {
+		valuesMapOfInterface = make(map[string]interface{}, 0)
+	}
+	if valuesMapOfString == nil {
+		valuesMapOfString = make(map[string]string, 0)
 	}
 
 	var missingParams []string
