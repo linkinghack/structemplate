@@ -4,8 +4,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// TemplateDynamicParam Defines a dynamic param that referenced by param code in a template.
+// Param values can be referenced by dynamic param definition for multiple times within one template.
+// Multiple dynamic params of different param type may be defined with same ParamCode to reference same param value.
+// Value for StrSlot param must be of type string while value for JsonPath must have correct data type (interface{} to execute yaml/json marshal).
+// StrSlot renderer should accept interface{} value.
 type TemplateDynamicParam struct {
-	ParamCode string `json:"paramCode"` // 参数唯一标识，用于区分预定义的必须实现的参数，用于模板中引用
+	ParamCode string `json:"paramCode"` // 参数唯一标识，用于模板中引用一个确定的值
 	ParamName string `json:"paramName"` // 用户可读的变量名称，易于分辨变量功能
 	Brief     string `json:"brief"`     // 参数解释
 
