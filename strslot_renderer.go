@@ -40,12 +40,17 @@ func RenderStrSlotTemplate(tmpl string, valuesMapOfInterface map[string]interfac
 		if sok {
 			valueStr = vs
 		} else {
-			valueB, err := json.Marshal(v)
-			if err != nil {
-				missingParams = append(missingParams, key)
-				return ""
+			switch v := v.(type) {
+			case string:
+				valueStr = v
+			default:
+				valueB, err := json.Marshal(v)
+				if err != nil {
+					missingParams = append(missingParams, key)
+					return ""
+				}
+				valueStr = string(valueB)
 			}
-			valueStr = string(valueB)
 		}
 		return valueStr
 	}
