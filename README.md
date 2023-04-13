@@ -5,13 +5,16 @@ that supports defining flexible dynamic parameters to modify arbitrary fields in
 ## Structured data template
 Structured data simply means some data structured with a common serializing method like `json` or `yaml`.
 
-In Kubernetes manifests, there are often some fields that needs be specified dynamically according to different
-scenarios when most of them don't need to change.
+In Kubernetes manifests, there are often some fields that needs to be specified dynamically according to different scenarios while most of them don't need to change.
 
-Reusing the manifests can increase the efficiency of cloud-native deployments, which is `Helm` is doing.
+Reusing the manifests can increase efficiency of cloud-native deployments, which is `Helm` is doing.
 
 `Structemplate` is different from `Helm`. It uses a precise way to define the variational parts of a manifest template
 and use values list to render a template afterwards.
+
+`Structemplate` is designed for managing manifest templates with dynamic parameters in a cloud native service platform which should support friendly Web UI.
+
+`Structemplate` can also be used for rendering a `values.yaml` for automatically installing a Helm chart.
 
 ## Dynamic Parameter
 A dynamic parameter is a well-defined variable in the structured data template.
