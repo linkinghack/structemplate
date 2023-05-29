@@ -35,6 +35,9 @@ type JsonPathParamTarget struct {
 	ObjectLabelSelector map[string]string       `json:"objectDistinctLabel,omitempty"` // 用于区分同一个模板中同一种GVK定义的多个不同对象
 }
 
+// Dynamic param values type
+type ParamValuesMap map[string]interface{}
+
 const (
 	ParamTypeStrSlot  = "StrSlot"
 	ParamTypeJsonPath = "JsonPath"
