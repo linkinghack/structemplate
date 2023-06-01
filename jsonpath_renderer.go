@@ -15,6 +15,12 @@ import (
 func RenderJsonPathParams(objsMap map[schema.GroupVersionKind][]*unstructured.Unstructured, paramsDef []TemplateDynamicParam, valuesMap map[string]interface{}) error {
 	var err error = nil
 	for _, param := range paramsDef {
+		if param.ParamType != ParamTypeJsonPath {
+			// skip non-JsonPath type params
+			continue
+		}
+
+		// for every inject target object set value of that json path
 		for _, gvkTarget := range param.ValueInjectTargets {
 			value, exist := valuesMap[param.ParamCode]
 			if !exist {
