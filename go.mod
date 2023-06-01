@@ -1,11 +1,11 @@
 module github.com/linkinghack/structemplate
 
-go 1.19
+go 1.20
 
 require (
 	github.com/drone/envsubst/v2 v2.0.0-20210730161058-179042472c46
 	github.com/pkg/errors v0.9.1
-	k8s.io/apimachinery v0.27.2
+	k8s.io/apimachinery v0.25.0
 )
 
 require (
