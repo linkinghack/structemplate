@@ -82,7 +82,7 @@ func parseKeyPath(keyPath string) []string {
 
 // AppendArrayField 为指定Unstructured对象的数组类型字段增加值
 // *将自动判断keyPath指定对象是否为数组类型，或为空时自动创建数组
-// *若keyPath不是
+// *若keyPath不是位置属性不是数组类型，则抛出错误
 func AppendArrayField(obj *unstructured.Unstructured, keyPath string, value interface{}) error {
 	kp := parseKeyPath(keyPath)
 	subObj, exists, err := unstructured.NestedFieldNoCopy(obj.Object, kp...)
@@ -113,7 +113,7 @@ func AppendArrayField(obj *unstructured.Unstructured, keyPath string, value inte
 	return nil
 }
 
-// SetFieldOfSetValueOfUnstructredObjUnstructured 为指定的Unstructured对象在keyPath指定的位置上设置任意值
+// SetValueOfUnstructredObj 为指定的Unstructured对象在keyPath指定的位置上设置任意值
 // keyPath: `.spec.name1.name2` 格式的json path表达式
 // value: 需要设置的任意值
 //
@@ -148,7 +148,7 @@ func AppendMapForUnstructuredObj(obj *unstructured.Unstructured, mapParamJsonPat
 			return errors.Wrap(err, "整数型参数解析出错")
 		}
 		return processFunc(intV)
-	case reflect.Float32:
+	case reflect.Float32, reflect.Float64:
 		return processFunc(value.(float64))
 	default:
 		return processFunc(value)
