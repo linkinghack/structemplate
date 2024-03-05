@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -58,6 +57,7 @@ func RenderJsonPathParamForUnstructuredObj(obj *unstructured.Unstructured, param
 		if err := AppendArrayField(obj, paramPath.ParamJsonPath, value); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	// 处理MapKV追加模式
@@ -65,6 +65,7 @@ func RenderJsonPathParamForUnstructuredObj(obj *unstructured.Unstructured, param
 		if err := AppendMapForUnstructuredObj(obj, paramPath.ParamJsonPath, paramDef.MapKey, value); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	// 处理一般属性设置模式
@@ -74,46 +75,42 @@ func RenderJsonPathParamForUnstructuredObj(obj *unstructured.Unstructured, param
 	return nil
 }
 
-func parseKeyPath(keyPath string) []string {
-	t1 := strings.Trim(keyPath, "$")
-	t1 = strings.Trim(t1, ".")
-	return strings.Split(t1, ".")
-}
-
 // AppendArrayField 为指定Unstructured对象的数组类型字段增加值
 // *将自动判断keyPath指定对象是否为数组类型，或为空时自动创建数组
-// *若keyPath不是
+// *若keyPath位置的值不是数组类型，则抛出错误
 func AppendArrayField(obj *unstructured.Unstructured, keyPath string, value interface{}) error {
-	kp := parseKeyPath(keyPath)
-	subObj, exists, err := unstructured.NestedFieldNoCopy(obj.Object, kp...)
-	if err != nil {
-		return err
-	}
+	return SetNestedField(obj.Object, keyPath, value, true)
+	// kp := parseKeyPath(keyPath)
 
-	if !exists {
-		// 全新字段，创建数组直接设置
-		unstructured.SetNestedField(obj.Object, []interface{}{value}, kp...)
-	} else {
-		// 检查数据类型为slice
-		t := reflect.TypeOf(subObj)
-		switch t.Kind() {
-		case reflect.Slice, reflect.Array:
-			subObj, ok := subObj.([]interface{})
-			if !ok {
-				return errors.New("转换目标字段为slice出错:" + keyPath)
-			}
-			newSli := append(subObj, value)
+	// subObj, exists, err := unstructured.NestedFieldNoCopy(obj.Object, kp...)
+	// if err != nil {
+	// 	return err
+	// }
 
-			// 重新替换
-			return unstructured.SetNestedSlice(obj.Object, newSli, kp[:len(kp)-1]...)
-		default:
-			return errors.New("目标字段不是slice或array")
-		}
-	}
-	return nil
+	// if !exists {
+	// 	// 全新字段，创建数组直接设置
+	// 	unstructured.SetNestedField(obj.Object, []interface{}{value}, kp...)
+	// } else {
+	// 	// 检查数据类型为slice
+	// 	t := reflect.TypeOf(subObj)
+	// 	switch t.Kind() {
+	// 	case reflect.Slice, reflect.Array:
+	// 		subObj, ok := subObj.([]interface{})
+	// 		if !ok {
+	// 			return errors.New("转换目标字段为slice出错:" + keyPath)
+	// 		}
+	// 		newSli := append(subObj, value)
+
+	// 		// 重新替换
+	// 		return SetNestedField(obj.Object, kp[:len(kp)-1], newSli, true)
+	// 	default:
+	// 		return errors.New("目标字段不是slice或array")
+	// 	}
+	// }
+	// return nil
 }
 
-// SetFieldOfSetValueOfUnstructredObjUnstructured 为指定的Unstructured对象在keyPath指定的位置上设置任意值
+// SetValueOfUnstructredObj 为指定的Unstructured对象在keyPath指定的位置上设置任意值
 // keyPath: `.spec.name1.name2` 格式的json path表达式
 // value: 需要设置的任意值
 //
@@ -127,11 +124,11 @@ func AppendMapForUnstructuredObj(obj *unstructured.Unstructured, mapParamJsonPat
 	processFunc := func(targetValue interface{}) error {
 		// 完成参数设定
 		// 解析jsonPath表达式 e.g.  `.metadata.namespace` --> []string{"metadata", "namespace"}
-		jsonPathArr := parseKeyPath(mapParamJsonPathKey)
-		if len(key) > 0 {
-			jsonPathArr = append(jsonPathArr, key)
-		}
-		return unstructured.SetNestedField(obj.Object, targetValue, jsonPathArr...)
+		// jsonPathArr := parseKeyPath(mapParamJsonPathKey)
+		// if len(key) > 0 {
+		// 	jsonPathArr = append(jsonPathArr, key)
+		// }
+		return SetNestedField(obj.Object, fmt.Sprintf("%s.%s", mapParamJsonPathKey, key), targetValue, false)
 	}
 
 	safeValue := reflect.ValueOf(value)
@@ -148,7 +145,7 @@ func AppendMapForUnstructuredObj(obj *unstructured.Unstructured, mapParamJsonPat
 			return errors.Wrap(err, "整数型参数解析出错")
 		}
 		return processFunc(intV)
-	case reflect.Float32:
+	case reflect.Float32, reflect.Float64:
 		return processFunc(value.(float64))
 	default:
 		return processFunc(value)
