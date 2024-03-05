@@ -23,7 +23,7 @@ func GetValueOfNestedField(object map[string]interface{}, jsonPath string) (inte
 	}
 
 	paths := ParseKeyPath(jsonPath)
-	var field interface{} = DeepCopyJSONValue(object) // 此处field 变为了{data: {originalData}}
+	var field interface{} = DeepCopyJSONValue(object)
 
 	var tracedPath string = ""
 	for i := 0; i < len(paths); i++ {
@@ -52,6 +52,7 @@ func GetValueOfNestedField(object map[string]interface{}, jsonPath string) (inte
 
 // SetNestedField sets a value in the structure of object
 // @Param appendArray: the element to operating is an array and the value should be appended in the array
+// @Param value: the value to inject. When append array is true, and value is an array, the elements in `value` will all be appended to the template.
 func SetNestedField(object map[string]interface{}, jsonPath string, value interface{}, appendArray bool) error {
 	if jsonPath == "" {
 		return errors.New("param jsonPath is empty")
@@ -130,7 +131,19 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 		}
 
 		targetArr := jumperObj[lastKey].([]interface{})
-		jumperObj[lastKey] = append(targetArr, value)
+
+		switch reflect.TypeOf(value).Kind() {
+		case reflect.Slice:
+			sliceValue := reflect.ValueOf(value)
+			newSlice := jumperObj[lastKey].([]interface{})
+			for i := 0; i < sliceValue.Len(); i++ {
+				newSlice = append(newSlice, sliceValue.Index(i).Interface())
+			}
+			jumperObj[lastKey] = newSlice
+		default:
+			jumperObj[lastKey] = append(targetArr, value)
+		}
+
 		return nil
 	}
 
@@ -184,7 +197,7 @@ func ParseJsonPathArrayIndex(idxExp string) (int64, error) {
 // DeepCopyJSONValue deep copies the passed value, assuming it is a valid JSON representation i.e. only contains
 // types produced by json.Unmarshal() and also int64.
 // bool, int64, float64, string, []interface{}, map[string]interface{}, json.Number and nil
-func DeepCopyJSONValue(x interface{}) interface{} {
+func deepCopyJSONValuebackup(x interface{}) interface{} {
 	switch x := x.(type) {
 	case map[string]interface{}:
 		if x == nil {
@@ -209,6 +222,37 @@ func DeepCopyJSONValue(x interface{}) interface{} {
 	case string, int64, int32, int16, int8, int, bool, float64, float32, nil: // rune is int32
 		return x
 	default:
+		panic(fmt.Errorf("cannot deep copy %T", x))
+	}
+}
+
+func DeepCopyJSONValue(x interface{}) interface{} {
+	val := reflect.ValueOf(x)
+	switch val.Kind() {
+	case reflect.Map:
+		if val.IsNil() {
+			return x
+		}
+		clone := reflect.MakeMap(val.Type())
+		for _, k := range val.MapKeys() {
+			clone.SetMapIndex(k, reflect.ValueOf(DeepCopyJSONValue(val.MapIndex(k).Interface())))
+		}
+		return clone.Interface()
+	case reflect.Slice:
+		if val.IsNil() {
+			return x
+		}
+		clone := reflect.MakeSlice(val.Type(), val.Len(), val.Cap())
+		for i := 0; i < val.Len(); i++ {
+			clone.Index(i).Set(reflect.ValueOf(DeepCopyJSONValue(val.Index(i).Interface())))
+		}
+		return clone.Interface()
+	case reflect.String, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int, reflect.Bool, reflect.Float64, reflect.Float32:
+		return x
+	default:
+		if val.IsValid() && val.CanInterface() {
+			return x
+		}
 		panic(fmt.Errorf("cannot deep copy %T", x))
 	}
 }

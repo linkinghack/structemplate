@@ -60,7 +60,14 @@ func TestRenderJsonpathParam_AppendArray(t *testing.T) {
 	objJson, _ := json.Marshal(obj)
 	t.Logf("Before append array, the object: %s\n", objJson)
 
-	err := RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], "correct.sni-hostname.example.com")
+	err := RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], []string{"correct-element1.sni-hostname.example.com", "correct-element2.sni-hostname.example.com"})
+	if err != nil {
+		t.Logf("Failed render JsonPath param: %+v", err)
+		t.FailNow()
+		return
+	}
+
+	err = RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], "correct.sni-hostname.example.com")
 	if err != nil {
 		t.Logf("Failed render JsonPath param: %+v", err)
 		t.FailNow()
@@ -79,7 +86,7 @@ func TestRenderJsonpathParam_AppendArray(t *testing.T) {
 	}
 	hostnamesArray := hostnames.([]interface{})
 	t.Logf("hostnames array: %+v", hostnames)
-	if len(hostnamesArray) != 3 || hostnamesArray[2] != "correct.sni-hostname.example.com" {
+	if len(hostnamesArray) != 5 || hostnamesArray[4] != "correct.sni-hostname.example.com" {
 		t.Log("Append array test failed")
 		t.FailNow()
 		return
@@ -109,7 +116,7 @@ func TestRenderJsonpathParam_ArrayAddObj(t *testing.T) {
 		t.FailNow()
 		return
 	}
-	t.Logf("illegal json path error: %s", err.Error())
+	// t.Logf("illegal json path error: %s", err.Error())
 }
 
 func TestRenderJsonpathParam_AppendMap(t *testing.T) {
