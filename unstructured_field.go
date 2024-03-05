@@ -1,23 +1,63 @@
 package structemplate
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
-// SetNestedField set a value in the structure of object
+func ParseKeyPath(keyPath string) []string {
+	t1 := strings.Trim(keyPath, "$")
+	t1 = strings.Trim(t1, ".")
+	return strings.Split(t1, ".")
+}
+
+// GetValueOfNestedField gets the value of field specified by `jsonPath` from the target object.
+func GetValueOfNestedField(object map[string]interface{}, jsonPath string) (interface{}, error) {
+	if len(jsonPath) < 1 || jsonPath == "." {
+		return DeepCopyJSONValue(object), nil
+	}
+
+	paths := ParseKeyPath(jsonPath)
+	var field interface{} = DeepCopyJSONValue(object) // 此处field 变为了{data: {originalData}}
+
+	var tracedPath string = ""
+	for i := 0; i < len(paths); i++ {
+		key := paths[i]
+		tracedPath += "." + key
+		switch reflect.TypeOf(field).Kind() {
+		case reflect.Slice:
+			idx, err := ParseJsonPathArrayIndex(key)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot parse the index of array field: "+tracedPath)
+			}
+			tmpField := field.([]interface{})
+			if len(tmpField) <= int(idx) {
+				return nil, errors.New(fmt.Sprintf("array field index out of bounds: %d of %s", idx, tracedPath))
+			}
+			field = tmpField[idx]
+		case reflect.Map:
+			tmpField := field.(map[string]interface{})
+			field = tmpField[key]
+		default:
+			return nil, errors.New("field does not exist: " + tracedPath)
+		}
+	}
+	return field, nil
+}
+
+// SetNestedField sets a value in the structure of object
 // @Param appendArray: the element to operating is an array and the value should be appended in the array
 func SetNestedField(object map[string]interface{}, jsonPath string, value interface{}, appendArray bool) error {
 	if jsonPath == "" {
 		return errors.New("param jsonPath is empty")
 	}
 
-	jsonPath = strings.Trim(jsonPath, ".")
-	paths := strings.Split(jsonPath, ".")
+	paths := ParseKeyPath(jsonPath)
 	var jumper interface{} = object
 	var jumperBackNode interface{} = object
 
@@ -33,7 +73,7 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 		case reflect.Slice:
 			idx, err := ParseJsonPathArrayIndex(currentKey)
 			if err != nil {
-				return errors.Join(fmt.Errorf("arror parse array index: %s", currentKey), err)
+				return errors.Wrap(err, fmt.Sprintf("arror parse array index: %s", currentKey))
 			}
 			jumperHolder := jumper.([]interface{})
 			if int(idx) >= len(jumperHolder) {
@@ -45,6 +85,7 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 			jumperBackNode = jumper
 			jumper = jumperHolder[idx]
 		case reflect.Map:
+			jumperBackNode = jumper
 			jumperHolder := jumper.(map[string]interface{})
 			nextJumper, ok := jumperHolder[currentKey]
 			if !ok {
@@ -57,11 +98,11 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 				} else {
 					// 2. .missing_property.other_property; add an object element
 					jumperHolder[currentKey] = make(map[string]interface{})
-				}
-				//if: end processing missing nodes
+				} //if: end processing missing nodes
+
+				jumper = jumperHolder[currentKey]
 			} else {
 				// jump to next node
-				jumperBackNode = jumper
 				jumper = nextJumper
 			}
 		default:
@@ -69,9 +110,10 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 		}
 	} // end finding last node
 
+	// processing last key and set the value
 	lastKey := paths[len(paths)-1]
 
-	// when append array is set, the jumper must be an map
+	// when append array is set, the jumper must be a map
 	if appendArray {
 		jumperObj, ok := jumper.(map[string]interface{})
 		if !ok {
@@ -93,7 +135,6 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 	}
 
 	// set last node
-
 	jumperType := reflect.TypeOf(jumper).Kind()
 	if jumperType == reflect.Slice {
 		// 1. fixed index array
@@ -121,18 +162,21 @@ func SetNestedField(object map[string]interface{}, jsonPath string, value interf
 
 func ParseJsonPathArrayIndex(idxExp string) (int64, error) {
 	matched, err := regexp.Match("^\\[\\d+\\]$", []byte(idxExp))
-	if !matched || err != nil {
-		return -1, errors.Join(errors.New("Parse index expression failed"), err)
+	if !matched {
+		return -1, errors.New("parse index expression failed")
+	}
+	if err != nil {
+		return -1, errors.Wrap(err, "parse index expression failed")
 	}
 
 	idx := strings.TrimLeft(idxExp, "[")
 	idx = strings.TrimRight(idx, "]")
 	idxNum, err := strconv.Atoi(idx)
 	if err != nil {
-		return -1, errors.Join(errors.New(""), err)
+		return -1, errors.Wrap(err, "illegal index number: "+idx)
 	}
 	if idxNum < 0 {
-		return -1, errors.New("Index less than 0")
+		return -1, errors.New("index less than 0")
 	}
 	return int64(idxNum), nil
 }
