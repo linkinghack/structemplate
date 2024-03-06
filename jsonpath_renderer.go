@@ -20,7 +20,7 @@ func RenderJsonPathParams(objsMap map[schema.GroupVersionKind][]*unstructured.Un
 		}
 
 		// for every inject target object set value of that json path
-		for _, gvkTarget := range param.ValueInjectTargets {
+		for _, jsonPathInjectTarget := range param.ValueInjectTargets {
 			value, exist := valuesMap[param.ParamCode]
 			if !exist {
 				value = param.Default
@@ -31,45 +31,50 @@ func RenderJsonPathParams(objsMap map[schema.GroupVersionKind][]*unstructured.Un
 				}
 				return errors.New("必填参数缺失:" + param.ParamCode)
 			}
-			err = RenderObjsWithOneJsonPathParam(objsMap[gvkTarget.TargetGVK], &param, &gvkTarget, value)
-			if err != nil {
-				break
-			}
-		}
-	}
-	return err
-}
 
-func RenderObjsWithOneJsonPathParam(objs []*unstructured.Unstructured, paramDef *TemplateDynamicParam, paramPath *JsonPathParamTarget, value interface{}) error {
-	var err error = nil
-	for _, obj := range objs {
-		if err = RenderJsonPathParamForUnstructuredObj(obj, paramDef, paramPath, value); err != nil {
-			break
+			for _, obj := range objsMap[jsonPathInjectTarget.TargetGVK] {
+				// check optional label selector
+				selected := true
+				for k, v := range jsonPathInjectTarget.ObjectLabelSelector {
+					if labelValue, exist := obj.GetLabels()[k]; !exist || v != labelValue {
+						selected = false
+						break
+					}
+				}
+				if !selected {
+					continue
+				}
+
+				if err := RenderJsonPathParamForUnstructuredObj(obj, &jsonPathInjectTarget, value); err != nil {
+					return errors.Wrap(err, "render pra")
+				}
+			}
+
 		}
 	}
 	return err
 }
 
 // RenderJsonPathParamForUnstructuredObj 为一个Unstructured Object渲染一个参数，自动识别label selector并过滤
-func RenderJsonPathParamForUnstructuredObj(obj *unstructured.Unstructured, paramDef *TemplateDynamicParam, paramPath *JsonPathParamTarget, value interface{}) error {
+func RenderJsonPathParamForUnstructuredObj(obj *unstructured.Unstructured, valueInjectTarget *JsonPathParamTarget, value interface{}) error {
 	// 处理数组元素追加模式
-	if paramDef.AppendArray {
-		if err := AppendArrayField(obj, paramPath.ParamJsonPath, value); err != nil {
+	if valueInjectTarget.AppendArray {
+		if err := AppendArrayField(obj, valueInjectTarget.ParamJsonPath, value); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	// 处理MapKV追加模式
-	if len(paramDef.MapKey) > 0 {
-		if err := AppendMapForUnstructuredObj(obj, paramPath.ParamJsonPath, paramDef.MapKey, value); err != nil {
+	if len(valueInjectTarget.MapKey) > 0 {
+		if err := AppendMapForUnstructuredObj(obj, valueInjectTarget.ParamJsonPath, valueInjectTarget.MapKey, value); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	// 处理一般属性设置模式
-	if err := SetValueOfUnstructredObj(obj, paramPath.ParamJsonPath, value); err != nil {
+	if err := SetValueOfUnstructredObj(obj, valueInjectTarget.ParamJsonPath, value); err != nil {
 		return err
 	}
 	return nil
@@ -80,34 +85,6 @@ func RenderJsonPathParamForUnstructuredObj(obj *unstructured.Unstructured, param
 // *若keyPath位置的值不是数组类型，则抛出错误
 func AppendArrayField(obj *unstructured.Unstructured, keyPath string, value interface{}) error {
 	return SetNestedField(obj.Object, keyPath, value, true)
-	// kp := parseKeyPath(keyPath)
-
-	// subObj, exists, err := unstructured.NestedFieldNoCopy(obj.Object, kp...)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if !exists {
-	// 	// 全新字段，创建数组直接设置
-	// 	unstructured.SetNestedField(obj.Object, []interface{}{value}, kp...)
-	// } else {
-	// 	// 检查数据类型为slice
-	// 	t := reflect.TypeOf(subObj)
-	// 	switch t.Kind() {
-	// 	case reflect.Slice, reflect.Array:
-	// 		subObj, ok := subObj.([]interface{})
-	// 		if !ok {
-	// 			return errors.New("转换目标字段为slice出错:" + keyPath)
-	// 		}
-	// 		newSli := append(subObj, value)
-
-	// 		// 重新替换
-	// 		return SetNestedField(obj.Object, kp[:len(kp)-1], newSli, true)
-	// 	default:
-	// 		return errors.New("目标字段不是slice或array")
-	// 	}
-	// }
-	// return nil
 }
 
 // SetValueOfUnstructredObj 为指定的Unstructured对象在keyPath指定的位置上设置任意值

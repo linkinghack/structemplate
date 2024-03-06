@@ -44,12 +44,12 @@ var param = TemplateDynamicParam{
 		{
 			TargetGVK:     schema.GroupVersionKind{Group: "gateway.networking.k8s.io", Version: "v1alpha2", Kind: "TLSRoute"},
 			ParamJsonPath: ".spec.hostnames",
+			AppendArray:   true,
 		},
 	},
 	Optional:      false,
 	Default:       "default.example.com",
 	ValueDataType: "string",
-	AppendArray:   true,
 }
 
 func TestRenderJsonpathParam_AppendArray(t *testing.T) {
@@ -60,14 +60,14 @@ func TestRenderJsonpathParam_AppendArray(t *testing.T) {
 	objJson, _ := json.Marshal(obj)
 	t.Logf("Before append array, the object: %s\n", objJson)
 
-	err := RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], []string{"correct-element1.sni-hostname.example.com", "correct-element2.sni-hostname.example.com"})
+	err := RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam.ValueInjectTargets[0], []string{"correct-element1.sni-hostname.example.com", "correct-element2.sni-hostname.example.com"})
 	if err != nil {
 		t.Logf("Failed render JsonPath param: %+v", err)
 		t.FailNow()
 		return
 	}
 
-	err = RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], "correct.sni-hostname.example.com")
+	err = RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam.ValueInjectTargets[0], "correct.sni-hostname.example.com")
 	if err != nil {
 		t.Logf("Failed render JsonPath param: %+v", err)
 		t.FailNow()
@@ -108,9 +108,9 @@ func TestRenderJsonpathParam_ArrayAddObj(t *testing.T) {
 	unstructuredObj := unstructured.Unstructured{Object: obj}
 	var newParam = param
 
-	newParam.AppendArray = false
 	newParam.ValueInjectTargets[0].ParamJsonPath = ".spec.hostnames.fakeKey"
-	err := RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], "fakeValue")
+	newParam.ValueInjectTargets[0].AppendArray = false
+	err := RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam.ValueInjectTargets[0], "fakeValue")
 	if err == nil {
 		t.Log("Expected error does not occurred")
 		t.FailNow()
@@ -121,23 +121,23 @@ func TestRenderJsonpathParam_ArrayAddObj(t *testing.T) {
 
 func TestRenderJsonpathParam_AppendMap(t *testing.T) {
 	var newParam = param
-	newParam.MapKey = "newObjectKey"
-	newParam.AppendArray = false
 	newParam.ValueInjectTargets[0].ParamJsonPath = ".spec"
+	newParam.ValueInjectTargets[0].AppendArray = false
+	newParam.ValueInjectTargets[0].MapKey = "newObjectKey"
 	obj := parseObject(t)
 	unstructuredObj := unstructured.Unstructured{Object: obj}
-	RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], "newObjectValue")
+	RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam.ValueInjectTargets[0], "newObjectValue")
 	objJson, _ := json.Marshal(obj)
 	t.Logf("After append map: %s\n", string(objJson))
 }
 
 func TestRenderJsonpathParam_NormalSetField(t *testing.T) {
 	var newParam = param
-	newParam.AppendArray = false
 	newParam.ValueInjectTargets[0].ParamJsonPath = ".spec.newEmptyObject.newEmptyField"
+	newParam.ValueInjectTargets[0].AppendArray = false
 	obj := parseObject(t)
 	unstructuredObj := unstructured.Unstructured{Object: obj}
-	RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam, &newParam.ValueInjectTargets[0], "newObjectValue")
+	RenderJsonPathParamForUnstructuredObj(&unstructuredObj, &newParam.ValueInjectTargets[0], "newObjectValue")
 	objJson, _ := json.Marshal(obj)
 	t.Logf("After normal set: %s\n", string(objJson))
 }
