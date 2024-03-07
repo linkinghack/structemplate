@@ -3,6 +3,7 @@ package structemplate
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -13,6 +14,11 @@ import (
 // RenderJsonPathParams 为一个Unstructured对象渲染一组JsonPath param
 func RenderJsonPathParams(objsMap map[schema.GroupVersionKind][]*unstructured.Unstructured, paramsDef []TemplateDynamicParam, valuesMap map[string]interface{}) error {
 	var err error = nil
+
+	sort.SliceStable(paramsDef, func(i, j int) bool {
+		return paramsDef[i].Order < paramsDef[j].Order
+	})
+
 	for _, param := range paramsDef {
 		if param.ParamType != ParamTypeJsonPath {
 			// skip non-JsonPath type params

@@ -19,6 +19,7 @@ type TemplateDynamicParam struct {
 	ValueInjectTargets []JsonPathParamTarget `json:"valueInjectTargets"`
 	Optional           bool                  `json:"optional"` // 是否为可选参数
 	Default            interface{}           `json:"default"`
+	Order              int                   `json:"order"` // 顺序参考值，对比同时应用的其他动态参数，值越小越先被执行；仅用于JsonPath类型
 
 	AvailableOptions []interface{} `json:"availableOptions"` // 预设可选值
 	Customizable     bool          `json:"customizable"`     // 是否允许用户自定义。为false时仅支持设定AvailableOptions中预设的值
